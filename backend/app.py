@@ -18,11 +18,16 @@ app = FastAPI(
 # ==========================================
 # CORS
 # ==========================================
+from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "http://localhost:5173",
+        "https://astram-traffic-engine.vercel.app",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app", # To support preview deployments
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
