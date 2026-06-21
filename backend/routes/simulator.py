@@ -4,7 +4,7 @@ import sys
 import joblib
 import pandas as pd
 
-from sentence_transformers import SentenceTransformer
+from utils.embedder import get_embedding
 
 
 # ======================================
@@ -35,9 +35,7 @@ similarity_model = joblib.load(
 )
 print("Loaded.")
 
-print("\nLoading Embedding Model...")
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-print("Loaded.")
+print("\nEmbedding Model: HF Inference API (all-MiniLM-L6-v2)")
 
 print("\nLoading Dataset...")
 df = preprocess()
@@ -152,7 +150,7 @@ def simulate_event(
     # --------------------------------
     # EMBEDDING
     # --------------------------------
-    embedding = embedder.encode([query], convert_to_numpy=True)
+    embedding = get_embedding(query).reshape(1, -1)
 
     # --------------------------------
     # FIND SIMILAR EVENTS
