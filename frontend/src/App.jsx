@@ -4,7 +4,7 @@ import SimulationForm from './components/SimulationForm.jsx';
 import ResultsPanel from './components/ResultsPanel.jsx';
 import LeafletMap from './components/LeafletMap.jsx';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = "http://localhost:8000" || "https://astram-backend.onrender.com";
 const DEFAULT_LOCATION = 'MG Road';
 
 function safeJson(response) {
