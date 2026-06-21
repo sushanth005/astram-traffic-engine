@@ -196,3 +196,28 @@ body:has(.light-theme){background:#E8F5F0!important;background-image:none!import
 .light-theme .time-text{color:#1A2B3C;}
 .light-theme .geo-status{color:#4A6572;}
 .light-theme .legend .item{color:#4A6572;}
+
+/* ===== MOBILE RESPONSIVENESS ===== */
+@media (max-width: 650px) {
+  .topbar { padding: 12px 16px; flex-wrap: wrap; gap: 12px; }
+  .conn { flex-wrap: wrap; justify-content: flex-start; }
+  .conn-field input { max-width: 140px; }
+  .hero { padding: 20px 16px 12px; }
+  .layout { padding: 8px 16px 40px; grid-template-columns: 1fr; gap: 16px; }
+  .panel { padding: 16px; }
+  .metric-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .resource-row { grid-template-columns: 1fr; }
+  .dial-wrap { flex-direction: column; align-items: center; text-align: center; gap: 16px; padding: 16px; }
+  .dial-info { min-width: 100%; }
+  .readout-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  #mapContainer, .leaflet-map-wrapper { height: 280px; margin-top: 8px; }
+  h1 { font-size: 24px; }
+  .seg { flex-wrap: wrap; }
+}
+
+@media (max-width: 400px) {
+  .metric-grid { grid-template-columns: 1fr; }
+  .conn-field input { width: 100%; max-width: none; }
+  .topbar { justify-content: center; text-align: center; }
+  .brand { justify-content: center; width: 100%; }
+}
