@@ -6,7 +6,8 @@
 
 <p align="center">
   <b>AI-powered Event Digital Twin for Bengaluru Traffic Police</b><br/>
-  Simulate any road event before it hits the street — risk scoring, resource deployment, AI response plans.
+  Simulate any road event before it hits the street — risk scoring, resource deployment, AI response plans.<br/>
+  <b>Deployed URL:</b> <a href="https://astram-traffic-engine.vercel.app">https://astram-traffic-engine.vercel.app</a>
 </p>
 
 ---
