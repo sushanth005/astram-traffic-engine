@@ -1,0 +1,43 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+env/
+.venv/
+
+# ===== Environment =====
+.env
+.env.local
+.env.production
+
+# ===== Node =====
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===== Logs =====
+*.log
+npm-debug.log*
+
+# ===== Do NOT ignore model files (needed for deployment) =====
+# models/embeddings.npy
+# models/similarity_engine.pkl
+# models/hotspots.csv
+# models/priority_model.pkl
+# models/resolution_model.pkl
+# data/Astram_event_data.csv

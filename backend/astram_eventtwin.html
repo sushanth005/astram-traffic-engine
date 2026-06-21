@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASTRAM EventTwin — Bengaluru Traffic Police</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2G8rsKY6F0KqFQ4x0cGDdD88BsqBMpXmg7hU8yM=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-vu5YpK0B3aMMqQWfI1ZfK14E7GWYdSGG9ixFtHh0Pxo=" crossorigin=""></script>
+<style>
+  :root{
+    --bg:#0B0E14;
+    --panel:#10141F;
+    --panel-2:#151B29;
+    --line:#232B3D;
+    --text:#E8ECF4;
+    --muted:#7C879C;
+    --amber:#FFB020;
+    --red:#FF4B4B;
+    --green:#34D399;
+    --blue:#5B8DEF;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(91,141,239,0.08), transparent 45%),
+      radial-gradient(circle at 85% 10%, rgba(255,176,32,0.06), transparent 40%);
+  }
+  ::selection{background:var(--amber);color:#0B0E14;}
+
+  a{color:inherit;}
+
+  /* ===== Top bar ===== */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 28px;
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:50;
+    background:rgba(11,14,20,0.92);
+    backdrop-filter:blur(8px);
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(155deg,var(--amber),#E0901A);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;color:#0B0E14;font-size:15px;
+    flex-shrink:0;
+  }
+  .brand-text .name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px;letter-spacing:0.2px;}
+  .brand-text .sub{font-size:11.5px;color:var(--muted);margin-top:1px;letter-spacing:0.3px;}
+  .conn{
+    display:flex;align-items:center;gap:14px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;
+  }
+  .conn-field{display:flex;align-items:center;gap:8px;}
+  .conn-field label{color:var(--muted);font-size:11px;}
+  .conn-field input{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:6px 10px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;
+    width:200px;outline:none;
+  }
+  .conn-field input:focus{border-color:var(--blue);}
+  .status-dot{
+    width:8px;height:8px;border-radius:50%;background:var(--muted);
+    box-shadow:0 0 0 0 rgba(124,135,156,0.5);
+    flex-shrink:0;
+  }
+  .status-dot.ok{background:var(--green);box-shadow:0 0 8px 1px rgba(52,211,153,0.6);}
+  .status-dot.bad{background:var(--red);box-shadow:0 0 8px 1px rgba(255,75,75,0.5);}
+  .status-text{color:var(--muted);}
+  .btn-mini{
+    background:none;border:1px solid var(--line);color:var(--muted);
+    padding:6px 10px;border-radius:8px;font-size:11.5px;cursor:pointer;font-family:'Inter',sans-serif;
+    transition:border-color .15s,color .15s;
+  }
+  .btn-mini:hover{border-color:var(--blue);color:var(--text);}
+
+  /* ===== Hero ===== */
+  .hero{
+    padding:48px 28px 28px;
+    max-width:1280px;margin:0 auto;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--amber);
+    letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{content:"";width:18px;height:1px;background:var(--amber);}
+  h1{
+    font-family:'Space Grotesk',sans-serif;font-weight:600;
+    font-size:clamp(28px,4vw,42px);line-height:1.12;margin:0 0 14px;letter-spacing:-0.5px;
+    max-width:780px;
+  }
+  h1 span{color:var(--amber);}
+  .hero p{
+    color:var(--muted);font-size:15px;line-height:1.6;max-width:600px;margin:0;
+  }
+
+  /* ===== Layout ===== */
+  .layout{
+    max-width:1280px;margin:0 auto;padding:8px 28px 80px;
+    display:grid;grid-template-columns:380px 1fr;gap:24px;
+  }
+  @media (max-width:920px){ .layout{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:24px;
+  }
+  .panel-title{
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;
+    display:flex;align-items:center;gap:10px;margin:0 0 4px;
+  }
+  .panel-title .tag{
+    font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);
+    border:1px solid var(--line);border-radius:6px;padding:2px 6px;
+  }
+  .panel-sub{color:var(--muted);font-size:12.5px;margin:0 0 22px;line-height:1.5;}
+
+  /* ===== Form ===== */
+  .field{margin-bottom:18px;}
+  .field label{
+    display:block;font-size:12px;color:var(--muted);margin-bottom:7px;
+    font-family:'JetBrains Mono',monospace;letter-spacing:0.3px;
+  }
+  .field input[type=text], .field select{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:11px 12px;border-radius:9px;font-size:13.5px;font-family:'Inter',sans-serif;
+    outline:none;appearance:none;transition:border-color .15s;
+  }
+  .field select{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237C879C'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 14px center;
+  }
+  .field input:focus, .field select:focus{border-color:var(--blue);}
+  .seg{display:flex;gap:8px;}
+  .seg button{
+    flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+    padding:10px 8px;border-radius:9px;font-size:12.5px;cursor:pointer;font-family:'Inter',sans-serif;font-weight:500;
+    transition:all .15s;
+  }
+  .seg button.active{
+    border-color:var(--amber);color:#0B0E14;background:var(--amber);
+  }
+  .switch-row{
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+    padding:11px 14px;
+  }
+  .switch-row span{font-size:13px;}
+  .switch{position:relative;width:42px;height:23px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{
+    position:absolute;inset:0;background:#2A3142;border-radius:24px;cursor:pointer;transition:.2s;
+  }
+  .slider::before{
+    content:"";position:absolute;width:17px;height:17px;left:3px;top:3px;
+    background:var(--muted);border-radius:50%;transition:.2s;
+  }
+  .switch input:checked + .slider{background:rgba(255,75,75,0.25);}
+  .switch input:checked + .slider::before{transform:translateX(19px);background:var(--red);}
+
+  .run-btn{
+    width:100%;margin-top:6px;
+    background:linear-gradient(155deg,var(--amber),#E0901A);
+    color:#0B0E14;border:none;padding:14px;border-radius:10px;
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14.5px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .12s, box-shadow .12s;
+  }
+  .run-btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px -8px rgba(255,176,32,0.5);}
+  .run-btn:disabled{opacity:0.55;cursor:not-allowed;transform:none;box-shadow:none;}
+  .run-btn .spin{
+    width:14px;height:14px;border-radius:50%;border:2px solid rgba(11,14,20,0.3);
+    border-top-color:#0B0E14;animation:spin .7s linear infinite;display:none;
+  }
+  .run-btn.loading .spin{display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .geometry-field input[type=text], .geometry-field input[type=number] {
+    width:100%;
+  }
+
+  @media print {
+    body { background:#fff; color:#000; }
+    .topbar, .layout > .panel:first-child, footer, .btn-mini, #locationSuggestions { display:none !important; }
+    .layout { max-width:100%; padding:0; grid-template-columns:1fr; }
+    .panel { border:none; background:transparent; box-shadow:none; }
+    .map-card { border:1px solid #ccc; }
+    .console { background:#fff; color:#000; }
+  }
+
+  .err-banner{
+    margin-top:14px;background:rgba(255,75,75,0.08);border:1px solid rgba(255,75,75,0.35);
+    color:#FFB3B3;padding:12px 14px;border-radius:9px;font-size:12.5px;line-height:1.5;display:none;
+  }
+
+  /* ===== Results ===== */
+  .results-empty{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:80px 20px;color:var(--muted);height:100%;min-height:480px;
+  }
+  .results-empty .dial-ghost{
+    width:140px;height:140px;border-radius:50%;border:2px dashed var(--line);
+    display:flex;align-items:center;justify-content:center;margin-bottom:22px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;
+  }
+  .results-empty h3{font-family:'Space Grotesk',sans-serif;color:var(--text);font-weight:600;font-size:16px;margin:0 0 8px;}
+  .results-empty p{font-size:13px;max-width:320px;line-height:1.6;margin:0;}
+
+  .readout-head{
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;
+  }
+  .readout-head .loc{
+    font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;
+  }
+  .readout-head .loc .meta{
+    display:block;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);
+    font-weight:400;margin-top:4px;
+  }
+
+  .dial-wrap{
+    display:flex;align-items:center;gap:28px;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+    padding:24px;margin-bottom:18px;flex-wrap:wrap;
+  }
+  .dial{position:relative;width:150px;height:150px;flex-shrink:0;}
+  .dial svg{transform:rotate(-90deg);}
+  .dial-center{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .dial-center .lvl{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:0.5px;}
+  .dial-center .score{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px;}
+
+  .dial-info{flex:1;min-width:200px;}
+  .dial-info .label{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px;text-transform:uppercase;}
+  .dial-info .desc{font-size:13.5px;line-height:1.6;color:var(--text);}
+
+  .metric-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;
+  }
+  @media (max-width:760px){.metric-grid{grid-template-columns:repeat(2,1fr);}}
+  .metric{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:16px;
+  }
+  .metric .m-label{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+  .metric .m-value{font-family:'Space Grotesk',sans-serif;font-size:21px;font-weight:600;}
+  .metric .m-value .unit{font-size:12px;color:var(--muted);font-weight:500;margin-left:3px;}
+
+  .resource-row{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;
+  }
+  @media (max-width:760px){.resource-row{grid-template-columns:1fr;}}
+  .resource{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:11px;
+    padding:16px;display:flex;align-items:center;gap:14px;
+  }
+  .resource .icon{
+    width:38px;height:38px;border-radius:9px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:17px;
+    background:rgba(91,141,239,0.12);
+  }
+  .resource .r-num{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:600;line-height:1.1;}
+  .resource .r-lbl{font-size:11.5px;color:var(--muted);margin-top:1px;}
+
+  .console{
+    background:#0A0D14;border:1px solid var(--line);border-radius:11px;
+    padding:18px 20px;font-family:'JetBrains Mono',monospace;font-size:12.5px;
+    line-height:1.7;color:#C9D4E3;white-space:pre-wrap;
+    max-height:340px;overflow-y:auto;
+  }
+  .console::-webkit-scrollbar{width:6px;}
+  .console::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+  .console-head{
+    display:flex;align-items:center;gap:8px;margin-bottom:14px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;
+  }
+  .console-head .dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+
+  .section-label{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:0.6px;margin:0 0 12px;
+  }
+
+  footer{
+    text-align:center;padding:0 28px 50px;color:var(--muted);font-size:11.5px;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  /* ===== Map ===== */
+  .map-card{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;margin-bottom:18px;
+  }
+  .map-toolbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:8px;
+  }
+  .map-toolbar .geo-status{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
+    display:flex;align-items:center;gap:7px;
+  }
+  .map-toolbar .geo-status .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+  .map-toolbar .geo-status .dot.ok{background:var(--green);}
+  .map-toolbar .geo-status .dot.bad{background:var(--red);}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;}
+  .legend .item{
+    display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .legend .swatch{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+  #mapContainer{
+    width:100%;height:380px;background:#0A0D14;position:relative;
+  }
+  #formMapContainer{
+    width:100%;height:220px;background:#0A0D14;position:relative;
+  }
+  #formMapContainer .map-fallback{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:var(--muted);font-size:12.5px;text-align:center;padding:20px;gap:8px;
+  }
+  .map-note{
+    font-size:11.5px;color:var(--muted);line-height:1.6;padding:12px 16px;
+    border-top:1px solid var(--line);background:rgba(255,176,32,0.04);
+  }
+  .map-note b{color:var(--amber);font-weight:600;}
+  .mappls-marker-badge{
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;font-weight:700;color:#0B0E14;
+    border-radius:50%;box-shadow:0 0 0 3px rgba(0,0,0,0.35);
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">AS</div>
+    <div class="brand-text">
+      <div class="name">ASTRAM EventTwin</div>
+      <div class="sub">Bengaluru Traffic Police</div>
+    </div>
+  </div>
+  <div class="conn">
+    <div class="conn-field">
+      <label for="apiBase">API</label>
+      <input id="apiBase" type="text" value="http://localhost:8000" spellcheck="false">
+    </div>
+    <div class="conn-field">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">checking…</span>
+    </div>
+    <button class="btn-mini" id="recheckBtn">Recheck</button>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="eyebrow">Event Digital Twin</div>
+  <h1>Simulate any road event before it <span>hits the street.</span></h1>
+  <p>Describe a planned or unplanned event and ASTRAM builds a digital twin from historical Bengaluru traffic data — risk level, resourcing, expected congestion, and an AI-generated response plan.</p>
+</div>
+
+<div class="layout">
+
+  <!-- FORM PANEL -->
+  <div class="panel">
+    <div class="panel-title">Simulate Event <span class="tag">POST /simulate</span></div>
+    <p class="panel-sub">Fill in what's happening and where. The twin runs it against similar historical events and Bengaluru hotspot density.</p>
+
+    <div class="field">
+      <label>Event type</label>
+      <div class="seg" id="eventTypeSeg">
+        <button data-val="planned" class="active">Planned</button>
+        <button data-val="unplanned">Unplanned</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="eventCause">Event cause</label>
+      <select id="eventCause">
+        <option>Political Rally</option>
+        <option>Protest / Demonstration</option>
+        <option>Road Construction</option>
+        <option>Vehicle Breakdown</option>
+        <option>Accident</option>
+        <option>VIP Movement</option>
+        <option>Religious Procession</option>
+        <option>Sports Event</option>
+        <option>Concert / Public Gathering</option>
+        <option>Waterlogging</option>
+        <option value="__other">Other (type below)</option>
+      </select>
+    </div>
+
+    <div class="field" id="customCauseField" style="display:none;">
+      <label for="customCause">Custom cause</label>
+      <input type="text" id="customCause" placeholder="e.g. Tree fall blocking 2 lanes">
+    </div>
+
+    <div class="field">
+      <label for="location">Location</label>
+      <input type="text" id="location" value="MG Road" placeholder="e.g. Silk Board Junction" autocomplete="off">
+      <div id="locationSuggestions" style="display:none;margin-top:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;overflow:hidden;"></div>
+    </div>
+
+    <div class="field">
+      <label>Location preview</label>
+      <div class="map-card" style="padding:0;margin-top:0;">
+        <div id="formMapContainer" style="width:100%;height:220px;background:#0A0D14;position:relative;">
+          <div class="map-fallback" id="formMapFallback" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);">FORM MAP IDLE</div>
+            <div style="font-size:12px;color:var(--muted);">Enter a location and choose point or span geometry.</div>
+          </div>
+        </div>
+        <div class="map-note" id="formMapNote" style="display:block;padding:12px 16px;border-top:1px solid var(--line);background:rgba(255,176,32,0.04);font-size:11px;">The preview updates from the form values.</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Geometry mode</label>
+      <div class="seg" id="geometryModeSeg">
+        <button data-val="point" class="active">Point</button>
+        <button data-val="span">Span / radius</button>
+      </div>
+    </div>
+
+    <div class="field geometry-field" id="pointGeometryField">
+      <label>Point coordinates</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <input type="text" id="centerLat" placeholder="Latitude">
+        <input type="text" id="centerLng" placeholder="Longitude">
+      </div>
+    </div>
+
+    <div class="field geometry-field" id="spanGeometryField" style="display:none;">
+      <label>Start / end coordinates</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <input type="text" id="startLat" placeholder="Start lat">
+        <input type="text" id="startLng" placeholder="Start lng">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+        <input type="text" id="endLat" placeholder="End lat">
+        <input type="text" id="endLng" placeholder="End lng">
+      </div>
+      <label for="radiusMeters" style="margin-top:10px;">Circle radius (m)</label>
+      <input type="number" id="radiusMeters" placeholder="e.g. 250">
+    </div>
+
+    <div class="field">
+      <label for="detectedZone">Zone</label>
+      <input type="text" id="detectedZone" placeholder="Auto-detected zone">
+    </div>
+    <div class="field">
+      <label for="detectedCorridor">Corridor</label>
+      <input type="text" id="detectedCorridor" placeholder="Auto-detected corridor">
+    </div>
+    <button class="btn-mini" id="refreshDetectionBtn" style="margin-bottom:14px;">Refresh zone / corridor</button>
+
+    <div class="field">
+      <div class="switch-row">
+        <span>Road closure</span>
+        <label class="switch">
+          <input type="checkbox" id="roadClosure">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <button class="run-btn" id="runBtn">
+      <span class="spin"></span>
+      <span id="runBtnText">Run simulation</span>
+    </button>
+
+    <div class="err-banner" id="errBanner"></div>
+  </div>
+
+  <!-- RESULTS PANEL -->
+  <div class="panel" id="resultsPanel">
+    <div class="results-empty" id="resultsEmpty">
+      <div class="dial-ghost">NO RUN<br>YET</div>
+      <h3>Twin readout will appear here</h3>
+      <p>Run a simulation on the left to generate a risk profile, resourcing plan, and AI recommendation for this event.</p>
+    </div>
+
+    <div id="resultsContent" style="display:none;">
+      <div class="readout-head">
+        <div class="loc" id="rLocation">—
+          <span class="meta" id="rMeta"></span>
+        </div>
+      </div>
+
+      <div class="section-label">Risk profile</div>
+      <div class="dial-wrap">
+        <div class="dial">
+          <svg width="150" height="150" viewBox="0 0 150 150">
+            <circle cx="75" cy="75" r="62" fill="none" stroke="#1B2233" stroke-width="14"/>
+            <circle id="dialArc" cx="75" cy="75" r="62" fill="none" stroke="var(--amber)" stroke-width="14"
+                    stroke-linecap="round" stroke-dasharray="389.6" stroke-dashoffset="389.6"
+                    style="transition:stroke-dashoffset 1s ease, stroke 0.3s;"/>
+          </svg>
+          <div class="dial-center">
+            <div class="lvl" id="dialLevel">—</div>
+            <div class="score" id="dialScore">score —</div>
+          </div>
+        </div>
+        <div class="dial-info">
+          <div class="label">Similarity to historical events</div>
+          <div class="desc" id="similarityDesc">—</div>
+        </div>
+      </div>
+
+      <div class="section-label">Spatial layout — barricades &amp; diversions</div>
+      <div class="map-card">
+        <div class="map-toolbar">
+          <div class="geo-status" id="geoStatus"><span class="dot" id="geoDot"></span><span id="geoStatusText">awaiting simulation</span></div>
+          <div class="legend">
+            <div class="item"><span class="swatch" style="background:var(--red);"></span>Event center</div>
+            <div class="item"><span class="swatch" style="background:var(--amber);"></span>Barricade</div>
+            <div class="item"><span class="swatch" style="background:var(--blue);"></span>Diversion route</div>
+            <div class="item"><span class="swatch" style="background:var(--green);"></span>Police post</div>
+          </div>
+        </div>
+        <div id="mapContainer">
+          <div class="map-fallback" id="mapFallback">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;">MAP IDLE</div>
+            <div>Run a simulation to plot the event on Mappls.</div>
+          </div>
+        </div>
+        <div class="map-note" id="mapNote" style="display:none;"></div>
+      </div>
+
+      <div class="section-label">Resourcing required</div>
+      <div class="resource-row">
+        <div class="resource">
+          <div class="icon">👮</div>
+          <div><div class="r-num" id="rPolice">—</div><div class="r-lbl">Police officers</div></div>
+        </div>
+        <div class="resource">
+          <div class="icon">🚧</div>
+          <div><div class="r-num" id="rBarricades">—</div><div class="r-lbl">Barricades</div></div>
+        </div>
+        <div class="resource">
+          <div class="icon">↪️</div>
+          <div><div class="r-num" id="rDiversions">—</div><div class="r-lbl">Diversion routes</div></div>
+        </div>
+      </div>
+
+      <div class="section-label">Impact metrics</div>
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="m-label">Congestion</div>
+          <div class="m-value" id="mCongestion">—<span class="unit">min</span></div>
+        </div>
+        <div class="metric">
+          <div class="m-label">Est. clearance</div>
+          <div class="m-value" id="mClearance">—</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">Confidence</div>
+          <div class="m-value" id="mConfidence">—</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">Nearby hotspots</div>
+          <div class="m-value" id="mHotspots">—</div>
+        </div>
+      </div>
+
+      <div class="section-label">AI response plan — Groq / Llama 3.3</div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button class="btn-mini" id="downloadPdfBtn">Download PDF report</button>
+      </div>
+      <div class="console">
+        <div class="console-head"><span class="dot"></span> astram-eventtwin · recommendation.log</div>
+        <div id="recommendationText">—</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>ASTRAM EventTwin · digital twin engine for road event response</footer>
+
+<script>
+const apiBaseInput = document.getElementById('apiBase');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const recheckBtn = document.getElementById('recheckBtn');
+
+function getApiBase(){
+  return apiBaseInput.value.trim().replace(/\/$/,'');
+}
+
+async function checkHealth(){
+  statusDot.className = 'status-dot';
+  statusText.textContent = 'checking…';
+  try{
+    const res = await fetch(getApiBase() + '/health', { method:'GET' });
+    if(!res.ok) throw new Error('bad status');
+    const data = await res.json();
+    statusDot.className = 'status-dot ok';
+    statusText.textContent = (data.status || 'connected');
+  }catch(e){
+    statusDot.className = 'status-dot bad';
+    statusText.textContent = 'offline';
+  }
+}
+recheckBtn.addEventListener('click', checkHealth);
+apiBaseInput.addEventListener('change', checkHealth);
+checkHealth();
+
+const roadClosure = document.getElementById('roadClosure');
+const locationInput = document.getElementById('location');
+const geometryModeSeg = document.getElementById('geometryModeSeg');
+const pointGeometryField = document.getElementById('pointGeometryField');
+const spanGeometryField = document.getElementById('spanGeometryField');
+const centerLat = document.getElementById('centerLat');
+const centerLng = document.getElementById('centerLng');
+const startLat = document.getElementById('startLat');
+const startLng = document.getElementById('startLng');
+const endLat = document.getElementById('endLat');
+const endLng = document.getElementById('endLng');
+const radiusMeters = document.getElementById('radiusMeters');
+const zoneInput = document.getElementById('detectedZone');
+const corridorInput = document.getElementById('detectedCorridor');
+const refreshDetectionBtn = document.getElementById('refreshDetectionBtn');
+const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const runBtn = document.getElementById('runBtn');
+const runBtnText = document.getElementById('runBtnText');
+const errBanner = document.getElementById('errBanner');
+const resultsEmpty = document.getElementById('resultsEmpty');
+const resultsContent = document.getElementById('resultsContent');
+
+// Event type segmented control
+const seg = document.getElementById('eventTypeSeg');
+let eventType = 'planned';
+seg.querySelectorAll('button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    seg.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    eventType = btn.dataset.val;
+  });
+});
+
+geometryModeSeg.querySelectorAll('button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    geometryModeSeg.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const mode = btn.dataset.val;
+    pointGeometryField.style.display = mode === 'point' ? 'block' : 'none';
+    spanGeometryField.style.display = mode === 'span' ? 'block' : 'none';
+    formMapClickToggle = 'start';
+    setFormMapNote(mode === 'point' ? 'Click the map to choose a point location.' : 'Click the map to choose a start point, then an end point.');
+  });
+});
+
+// Custom cause toggle
+const eventCause = document.getElementById('eventCause');
+const customCauseField = document.getElementById('customCauseField');
+const customCause = document.getElementById('customCause');
+eventCause.addEventListener('change', ()=>{
+  customCauseField.style.display = eventCause.value === '__other' ? 'block' : 'none';
+});
+
+function riskColor(level){
+  if(level === 'HIGH') return 'var(--red)';
+  if(level === 'MEDIUM') return 'var(--amber)';
+  return 'var(--green)';
+}
+
+function setDial(level, score){
+  const circumference = 389.6; // 2*pi*62
+  const maxScore = 13; // approx ceiling from risk_engine additive logic
+  const pct = Math.max(0.06, Math.min(score / maxScore, 1));
+  const offset = circumference * (1 - pct);
+  const arc = document.getElementById('dialArc');
+  arc.style.stroke = riskColor(level);
+  arc.style.strokeDashoffset = offset;
+  document.getElementById('dialLevel').textContent = level;
+  document.getElementById('dialLevel').style.color = riskColor(level);
+  document.getElementById('dialScore').textContent = 'score ' + score;
+}
+
+function parsePoint(latInput, lngInput){
+  const lat = parseFloat(latInput.value.trim());
+  const lng = parseFloat(lngInput.value.trim());
+  if(Number.isFinite(lat) && Number.isFinite(lng)){
+    return {lat, lng};
+  }
+  return null;
+}
+
+function loadZoneCorridor(query){
+  if(!query || !query.trim()) return;
+  fetch(getApiBase() + '/detect-location', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ query })
+  }).then(res=>res.json()).then(data=>{
+    if(data.zone && !zoneInput.value.trim()) zoneInput.value = data.zone;
+    if(data.corridor && !corridorInput.value.trim()) corridorInput.value = data.corridor;
+    setGeoStatus('ok', 'auto-detected ' + (data.match || 'none'));
+  }).catch(()=>{});
+}
+
+const formInputs = [locationInput, centerLat, centerLng, startLat, startLng, endLat, endLng, radiusMeters];
+formInputs.forEach(input => input.addEventListener('change', updateFormPreview));
+formInputs.forEach(input => input.addEventListener('input', updateFormPreview));
+geometryModeSeg.querySelectorAll('button').forEach(btn=>{
+  btn.addEventListener('click', updateFormPreview);
+});
+
+function renderResults(data, meta){
+  resultsEmpty.style.display = 'none';
+  resultsContent.style.display = 'block';
+
+  const zoneLabel = meta.zone ? ' · ' + meta.zone : '';
+  const corridorLabel = meta.corridor ? ' · ' + meta.corridor : '';
+  document.getElementById('rLocation').innerHTML = meta.location +
+    '<span class="meta">' + meta.eventType.toUpperCase() + ' · ' + meta.cause + (meta.roadClosure ? ' · road closure' : '') + zoneLabel + corridorLabel + '</span>';
+
+  setDial(data.risk_level, data.risk_score);
+  document.getElementById('similarityDesc').textContent =
+    'Matched against past incidents with a similarity score of ' + data.similarity_score +
+    '. This twin is built from the closest 5 historical events in the dataset.';
+
+  document.getElementById('rPolice').textContent = data.police_required;
+  document.getElementById('rBarricades').textContent = data.barricades_required;
+  document.getElementById('rDiversions').textContent = data.diversions;
+
+  document.getElementById('mCongestion').innerHTML = data.expected_congestion_minutes + '<span class="unit">min</span>';
+  document.getElementById('mClearance').textContent = data.estimated_clearance_time;
+  document.getElementById('mConfidence').textContent = Math.round(data.confidence_score * 100) + '%';
+  document.getElementById('mHotspots').textContent = data.hotspots;
+
+  if(!zoneInput.value.trim()) zoneInput.value = data.detected_zone || '';
+  if(!corridorInput.value.trim()) corridorInput.value = data.detected_corridor || '';
+  setGeoStatus('ok', 'detected ' + (data.detection_match || 'none'));
+  document.getElementById('recommendationText').textContent = data.recommendation || '(no recommendation returned)';
+}
+
+/* ================= MAPPLS INTEGRATION ================= */
+
+let mapplsToken = null;
+let mapplsSdkLoaded = false;
+let mapInstance = null;
+const geoDot = document.getElementById('geoDot');
+const geoStatusText = document.getElementById('geoStatusText');
+const mapFallback = document.getElementById('mapFallback');
+const mapNote = document.getElementById('mapNote');
+
+function setGeoStatus(state, text){
+  geoDot.className = 'dot' + (state ? ' ' + state : '');
+  geoStatusText.textContent = text;
+}
+
+let formMapInstance = null;
+let formMapInstanceType = null;
+let leafletMap = null;
+let leafletLayers = [];
+let formMapClickToggle = 'start';
+const formMapFallback = document.getElementById('formMapFallback');
+const formMapNote = document.getElementById('formMapNote');
+
+function setFormMapNote(text){
+  formMapNote.textContent = text;
+}
+
+function getLatLngFromClick(evt){
+  if(!evt) return null;
+  const probe = evt.latLng || evt.latlng || evt.location || evt.position || evt.mapPoint || evt.coordinate || evt;
+  if(!probe) return null;
+  const lat = typeof probe.lat === 'function' ? probe.lat() : (probe.lat ?? probe.latitude ?? probe.latLng ?? probe.lat_lng);
+  const lng = typeof probe.lng === 'function' ? probe.lng() : (probe.lng ?? probe.longitude ?? probe.long ?? probe.lng_lng);
+  if(Number.isFinite(lat) && Number.isFinite(lng)) return {lat, lng};
+  if(probe.coords){
+    const coords = probe.coords;
+    if(Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) return {lat: coords.lat, lng: coords.lng};
+  }
+  return null;
+}
+
+function handleFormMapClick(evt){
+  const coords = getLatLngFromClick(evt);
+  if(!coords) return;
+  const mode = geometryModeSeg.querySelector('button.active').dataset.val;
+
+  if(mode === 'point'){
+    centerLat.value = coords.lat.toFixed(6);
+    centerLng.value = coords.lng.toFixed(6);
+    setFormMapNote('Point selected. Coordinates populated in the form.');
+  } else {
+    const currentStart = parsePoint(startLat, startLng);
+    const currentEnd = parsePoint(endLat, endLng);
+    if(!currentStart){
+      startLat.value = coords.lat.toFixed(6);
+      startLng.value = coords.lng.toFixed(6);
+      setFormMapNote('Start point selected. Click again for end point.');
+      formMapClickToggle = 'end';
+    } else if(!currentEnd){
+      endLat.value = coords.lat.toFixed(6);
+      endLng.value = coords.lng.toFixed(6);
+      setFormMapNote('End point selected. Click again to update start/end.');
+      formMapClickToggle = 'start';
+    } else {
+      if(formMapClickToggle === 'start'){
+        startLat.value = coords.lat.toFixed(6);
+        startLng.value = coords.lng.toFixed(6);
+        setFormMapNote('Start point updated. Next click will update end point.');
+        formMapClickToggle = 'end';
+      } else {
+        endLat.value = coords.lat.toFixed(6);
+        endLng.value = coords.lng.toFixed(6);
+        setFormMapNote('End point updated. Next click will update start point.');
+        formMapClickToggle = 'start';
+      }
+    }
+  }
+  updateFormPreview();
+}
+
+function attachFormMapClick(map){
+  if(!map) return;
+  if(formMapInstanceType === 'mappls'){
+    try{
+      if(typeof map.on === 'function'){
+        map.on('click', handleFormMapClick);
+        return;
+      }
+      if(typeof map.addListener === 'function'){
+        map.addListener('click', handleFormMapClick);
+        return;
+      }
+      if(window.mappls.event && typeof window.mappls.event.addListener === 'function'){
+        window.mappls.event.addListener(map, 'click', handleFormMapClick);
+        return;
+      }
+    }catch(e){/* ignore */}
+  }
+  if(formMapInstanceType === 'leaflet' && window.L){
+    map.on('click', function(e){ handleFormMapClick(e.latlng); });
+    return;
+  }
+}
+
+function clearLeafletOverlays(){
+  leafletLayers.forEach(layer=>{ try{ leafletMap.removeLayer(layer); }catch(e){} });
+  leafletLayers = [];
+}
+
+function initLeafletMap(center){
+  if(!window.L) throw new Error('Leaflet unavailable');
+  const container = document.getElementById('formMapContainer');
+  if(!container) throw new Error('Form map container missing');
+  container.innerHTML = '';
+
+  if(leafletMap){
+    try{ leafletMap.remove(); }catch(_){ }
+    leafletMap = null;
+    leafletLayers = [];
+  }
+
+  leafletMap = window.L.map('formMapContainer', { zoomControl: false }).setView([center.lat, center.lng], 14);
+  window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(leafletMap);
+  leafletLayers = [];
+  attachFormMapClick(leafletMap);
+  return leafletMap;
+}
+
+async function initFormMap(center){
+  if(window.mappls){
+    try{
+      const token = await getMapToken();
+      await loadMapplsSdk(token);
+      formMapInstanceType = 'mappls';
+    }catch(e){
+      formMapInstanceType = 'leaflet';
+    }
+  } else {
+    formMapInstanceType = 'leaflet';
+  }
+
+  if(formMapInstanceType === 'mappls'){
+    if(!formMapInstance){
+      formMapInstance = new window.mappls.Map('formMapContainer', {
+        center: [center.lat, center.lng],
+        zoom: 14,
+        zoomControl: false,
+        backgroundColor: '#0A0D14'
+      });
+      formMapInstance.__overlays = [];
+      attachFormMapClick(formMapInstance);
+    } else {
+      formMapInstance.setCenter([center.lat, center.lng]);
+      if(formMapInstance.__overlays) formMapInstance.__overlays.forEach(o=>{ try{o.remove();}catch(e){} });
+      formMapInstance.__overlays = [];
+    }
+    return formMapInstance;
+  }
+
+  if(formMapInstanceType === 'leaflet'){
+    try{
+      if(formMapInstance){
+        try{ formMapInstance.remove(); }catch(_){ }
+        formMapInstance = null;
+      }
+      if(leafletMap){
+        try{ leafletMap.remove(); }catch(_){ }
+        leafletMap = null;
+        leafletLayers = [];
+      }
+      leafletMap = initLeafletMap(center);
+      return leafletMap;
+    }catch(e){
+      throw new Error('Leaflet map failed to initialize: ' + e.message);
+    }
+  }
+
+  throw new Error('No map available');
+}
+
+function clearFormMapOverlays(){
+  if(!formMapInstance || !formMapInstance.__overlays) return;
+  formMapInstance.__overlays.forEach(o=>{ try{o.remove();}catch(e){} });
+  formMapInstance.__overlays = [];
+}
+
+async function updateFormPreview(){
+  const mode = geometryModeSeg.querySelector('button.active').dataset.val;
+  const locationText = locationInput.value.trim();
+  const defaultCenter = { lat: 12.9715987, lng: 77.5945627, source: 'default' };
+
+  if(!locationText){
+    formMapFallback.style.display = 'none';
+    let center = defaultCenter;
+    try{
+      const map = await initFormMap(center);
+      if(formMapInstanceType === 'mappls'){
+        clearFormMapOverlays();
+        formMapInstance.__overlays = formMapInstance.__overlays || [];
+        formMapInstance.__overlays.push(new window.mappls.Marker({ map: formMapInstance, position: center, icon: makeBadge('var(--amber)', '★') }));
+      } else {
+        clearLeafletOverlays();
+        leafletLayers.push(window.L.marker([center.lat, center.lng]).addTo(leafletMap));
+      }
+    }catch(e){
+      formMapFallback.style.display = 'flex';
+      setFormMapNote('Map preview unavailable.');
+      return;
+    }
+    setFormMapNote('Default Bengaluru preview. Click the map to place a point or span.');
+    return;
+  }
+
+  formMapFallback.style.display = 'none';
+  let center;
+  try{
+    const token = await getMapToken();
+    center = await geocodeLocation(locationText, token);
+  }catch(e){
+    center = defaultCenter;
+  }
+
+  let map;
+  try{
+    map = await initFormMap(center);
+  }catch(e){
+    formMapFallback.style.display = 'flex';
+    setFormMapNote('Map preview unavailable.');
+    return;
+  }
+
+  let point = parsePoint(centerLat, centerLng);
+  const startPoint = parsePoint(startLat, startLng);
+  const endPoint = parsePoint(endLat, endLng);
+  const radius = Number(radiusMeters.value.trim());
+
+  if(formMapInstanceType === 'mappls'){
+    clearFormMapOverlays();
+    formMapInstance.__overlays = formMapInstance.__overlays || [];
+  } else {
+    clearLeafletOverlays();
+  }
+
+  if(mode === 'point'){
+    if(!point && center){
+      point = center;
+    }
+    if(point){
+      if(formMapInstanceType === 'mappls'){
+        formMapInstance.__overlays.push(new window.mappls.Marker({ map: formMapInstance, position: point, icon: makeBadge('var(--red)', 'P') }));
+        if(Number.isFinite(radius) && radius > 0){
+          formMapInstance.__overlays.push(new window.mappls.Circle({ map: formMapInstance, center: point, radius, fillColor: '#5B8DEF', fillOpacity: 0.08, strokeColor: '#5B8DEF', strokeOpacity: 0.45, strokeWeight: 1 }));
+        }
+        formMapInstance.setCenter([point.lat, point.lng]);
+      } else {
+        const marker = window.L.marker([point.lat, point.lng]).addTo(leafletMap);
+        leafletLayers.push(marker);
+        if(Number.isFinite(radius) && radius > 0){
+          const circle = window.L.circle([point.lat, point.lng], { radius, color: '#5B8DEF', fillColor: '#5B8DEF', fillOpacity: 0.08, weight: 1 }).addTo(leafletMap);
+          leafletLayers.push(circle);
+        }
+        leafletMap.setView([point.lat, point.lng], 14);
+      }
+      setFormMapNote(Number.isFinite(radius) && radius > 0 ? 'Point preview with radius overlay.' : 'Point preview. Enter radius to show a circular zone.');
+      return;
+    }
+  }
+
+  if(mode === 'span' && startPoint && endPoint){
+    if(formMapInstanceType === 'mappls'){
+      formMapInstance.__overlays.push(new window.mappls.Marker({ map: formMapInstance, position: startPoint, icon: makeBadge('var(--amber)', 'S') }));
+      formMapInstance.__overlays.push(new window.mappls.Marker({ map: formMapInstance, position: endPoint, icon: makeBadge('var(--green)', 'E') }));
+      formMapInstance.__overlays.push(new window.mappls.Polyline({ map: formMapInstance, path: [startPoint, endPoint], strokeColor: '#34D399', strokeOpacity: 0.85, strokeWeight: 3 }));
+      formMapInstance.setCenter([startPoint.lat, startPoint.lng]);
+    } else {
+      leafletLayers.push(window.L.marker([startPoint.lat, startPoint.lng]).addTo(leafletMap));
+      leafletLayers.push(window.L.marker([endPoint.lat, endPoint.lng]).addTo(leafletMap));
+      leafletLayers.push(window.L.polyline([[startPoint.lat, startPoint.lng], [endPoint.lat, endPoint.lng]], { color: '#34D399', weight: 3, opacity: 0.85 }).addTo(leafletMap));
+      leafletMap.fitBounds([[startPoint.lat, startPoint.lng], [endPoint.lat, endPoint.lng]], { padding: [30, 30] });
+    }
+    setFormMapNote('Span preview from start to end point.');
+    return;
+  }
+
+  if(formMapInstanceType === 'mappls'){
+    formMapInstance.__overlays.push(new window.mappls.Marker({ map: formMapInstance, position: center, icon: makeBadge('var(--amber)', '★') }));
+    setFormMapNote('Geocoded location center. Enter geometry values for a preview.');
+  } else {
+    leafletLayers.push(window.L.marker([center.lat, center.lng]).addTo(leafletMap));
+    leafletMap.setView([center.lat, center.lng], 14);
+    setFormMapNote('Geocoded location center. Enter geometry values for a preview.');
+  }
+}
+
+async function getMapToken(){
+  if(mapplsToken) return mapplsToken;
+  const res = await fetch(getApiBase() + '/map-token');
+  const data = await res.json();
+  if(data.error || !data.token) throw new Error(data.error || 'no token returned');
+  mapplsToken = data.token;
+  return mapplsToken;
+}
+
+function loadMapplsSdk(token){
+  return new Promise((resolve, reject)=>{
+    if(mapplsSdkLoaded && window.mappls){ resolve(); return; }
+    const existing = document.getElementById('mapplsSdkScript');
+    if(existing) existing.remove();
+    const script = document.createElement('script');
+    script.id = 'mapplsSdkScript';
+    script.src = 'https://apis.mappls.com/advancedmaps/api/' + token + '/map_sdk?layer=vector&v=3.0&callback=__mapplsSdkReady';
+    window.__mapplsSdkReady = ()=>{ mapplsSdkLoaded = true; resolve(); };
+    script.onerror = ()=> reject(new Error('Mappls SDK failed to load'));
+    document.head.appendChild(script);
+    setTimeout(()=>{ if(!mapplsSdkLoaded) reject(new Error('Mappls SDK load timed out')); }, 8000);
+  });
+}
+
+// Geocode via Mappls; falls back to OSM Nominatim (Bengaluru-biased) if Mappls call fails.
+async function geocodeLocation(query, token){
+  try{
+    const url = 'https://atlas.mappls.com/api/places/geocode?address=' + encodeURIComponent(query + ', Bengaluru');
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    if(res.ok){
+      const data = await res.json();
+      const g = data && data.copResults;
+      if(g && g.latitude && g.longitude){
+        return { lat: parseFloat(g.latitude), lng: parseFloat(g.longitude), source: 'mappls' };
+      }
+    }
+  }catch(e){ /* fall through */ }
+
+  // Fallback: Nominatim, biased to Bengaluru bounding box
+  try{
+    const url2 = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' +
+      encodeURIComponent(query + ', Bengaluru, India');
+    const res2 = await fetch(url2, { headers: { 'Accept': 'application/json' } });
+    const data2 = await res2.json();
+    if(data2 && data2[0]){
+      return { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon), source: 'nominatim' };
+    }
+  }catch(e){ /* ignore */ }
+
+  // Last resort: central Bengaluru
+  return { lat: 12.9716, lng: 77.5946, source: 'default' };
+}
+
+// Offset a lat/lng by `meters` along compass `bearingDeg` (0 = north, 90 = east)
+function offsetLatLng(lat, lng, meters, bearingDeg){
+  const R = 6378137;
+  const brng = bearingDeg * Math.PI / 180;
+  const lat1 = lat * Math.PI / 180;
+  const lng1 = lng * Math.PI / 180;
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(meters / R) +
+    Math.cos(lat1) * Math.sin(meters / R) * Math.cos(brng));
+  const lng2 = lng1 + Math.atan2(
+    Math.sin(brng) * Math.sin(meters / R) * Math.cos(lat1),
+    Math.cos(meters / R) - Math.sin(lat1) * Math.sin(lat2)
+  );
+  return { lat: lat2 * 180 / Math.PI, lng: lng2 * 180 / Math.PI };
+}
+
+function clearMapOverlays(){
+  if(!mapInstance || !mapInstance.__overlays) return;
+  mapInstance.__overlays.forEach(o=>{ try{ o.remove(); }catch(e){} });
+  mapInstance.__overlays = [];
+}
+
+function makeBadge(color, label){
+  const div = document.createElement('div');
+  div.className = 'mappls-marker-badge';
+  div.style.background = color;
+  div.style.width = '22px';
+  div.style.height = '22px';
+  div.style.fontSize = '10px';
+  div.textContent = label;
+  return div;
+}
+
+// Build the spatial layout: event center, ring of barricades, diversion routes
+// fanning out from points just beyond the barricade ring. Counts come straight
+// from the model's risk_engine output (police_required / barricades_required / diversions);
+// exact compass placement is a planning heuristic, not a literal ground survey.
+async function plotEventOnMap(center, counts, riskLevel, geometry = {}){
+  mapFallback.style.display = 'none';
+  setGeoStatus('ok', 'plotted via ' + center.source);
+
+  let token;
+  try{
+    token = await getMapToken();
+    await loadMapplsSdk(token);
+  }catch(e){
+    mapFallback.style.display = 'flex';
+    mapFallback.innerHTML = '<div style="font-family:\'JetBrains Mono\',monospace;font-size:11px;">MAP UNAVAILABLE</div><div>' + e.message + '. Check MAPPLS_CLIENT_ID/SECRET in the backend .env.</div>';
+    setGeoStatus('bad', 'map sdk unavailable');
+    renderNoteOnly(center, counts, riskLevel);
+    return;
+  }
+
+  if(!mapInstance){
+    mapInstance = new window.mappls.Map('mapContainer', {
+      center: [center.lat, center.lng],
+      zoom: 15,
+      zoomControl: false,
+      backgroundColor: '#0A0D14'
+    });
+    mapInstance.__overlays = [];
+  } else {
+    mapInstance.setCenter([center.lat, center.lng]);
+    clearMapOverlays();
+  }
+
+  const overlays = mapInstance.__overlays;
+  const closureRadius = riskLevel === 'HIGH' ? 350 : riskLevel === 'MEDIUM' ? 220 : 130;
+
+  if(geometry.radius_meters && Number.isFinite(geometry.radius_meters) && geometry.radius_meters > 0){
+    overlays.push(new window.mappls.Circle({
+      map: mapInstance, center: { lat: center.lat, lng: center.lng },
+      radius: geometry.radius_meters, fillColor: '#5B8DEF', fillOpacity: 0.08,
+      strokeColor: '#5B8DEF', strokeOpacity: 0.4, strokeWeight: 1
+    }));
+  }
+
+  // Event center marker
+  overlays.push(new window.mappls.Marker({
+    map: mapInstance, position: { lat: center.lat, lng: center.lng },
+    fitbounds: true, icon: makeBadge('var(--red)', '●')
+  }));
+
+  // Closure perimeter
+  overlays.push(new window.mappls.Circle({
+    map: mapInstance, center: { lat: center.lat, lng: center.lng },
+    radius: closureRadius, fillColor: '#FF4B4B', fillOpacity: 0.06,
+    strokeColor: '#FF4B4B', strokeOpacity: 0.5, strokeWeight: 1
+  }));
+
+  // Barricades — spread evenly around the perimeter
+  const bCount = Math.max(0, counts.barricades);
+  for(let i = 0; i < bCount; i++){
+    const bearing = (360 / bCount) * i;
+    const pos = offsetLatLng(center.lat, center.lng, closureRadius, bearing);
+    overlays.push(new window.mappls.Marker({
+      map: mapInstance, position: pos,
+      icon: makeBadge('var(--amber)', (i + 1).toString())
+    }));
+  }
+
+  // Police posts — fewer, placed at wider intervals just inside the perimeter
+  const pCount = Math.min(6, Math.max(1, Math.round(counts.police / 4)));
+  for(let i = 0; i < pCount; i++){
+    const bearing = (360 / pCount) * i + 30;
+    const pos = offsetLatLng(center.lat, center.lng, closureRadius * 0.6, bearing);
+    overlays.push(new window.mappls.Marker({
+      map: mapInstance, position: pos,
+      icon: makeBadge('var(--green)', '★')
+    }));
+  }
+
+  // Span geometry markers
+  if(geometry.start_point){
+    overlays.push(new window.mappls.Marker({
+      map: mapInstance, position: geometry.start_point,
+      icon: makeBadge('#5B8DEF', 'S')
+    }));
+  }
+  if(geometry.end_point){
+    overlays.push(new window.mappls.Marker({
+      map: mapInstance, position: geometry.end_point,
+      icon: makeBadge('#34D399', 'E')
+    }));
+  }
+  if(geometry.start_point && geometry.end_point){
+    overlays.push(new window.mappls.Polyline({
+      map: mapInstance, path: [geometry.start_point, geometry.end_point],
+      strokeColor: '#34D399', strokeOpacity: 0.85, strokeWeight: 3
+    }));
+  }
+
+  // Diversion routes — road-snapped via Mappls Direction API where possible
+  const dCount = Math.max(0, counts.diversions);
+  for(let i = 0; i < dCount; i++){
+    const bearing = (360 / Math.max(dCount, 1)) * i + 60;
+    const waypointStart = offsetLatLng(center.lat, center.lng, closureRadius * 1.1, bearing);
+    const waypointEnd = offsetLatLng(center.lat, center.lng, closureRadius * 1.1, bearing + (360 / Math.max(dCount, 1)) * 0.65);
+    let path = [waypointStart, waypointEnd];
+    try{
+      const routeUrl = 'https://apis.mappls.com/advancedmaps/v1/' + token + '/route_adv/driving/' +
+        waypointStart.lng + ',' + waypointStart.lat + ';' + waypointEnd.lng + ',' + waypointEnd.lat +
+        '?geometries=geojson&overview=full';
+      const r = await fetch(routeUrl);
+      if(r.ok){
+        const rd = await r.json();
+        const coords = rd && rd.routes && rd.routes[0] && rd.routes[0].geometry && rd.routes[0].geometry.coordinates;
+        if(coords && coords.length){
+          path = coords.map(c => ({ lat: c[1], lng: c[0] }));
+        }
+      }
+    }catch(e){ /* keep straight fallback */ }
+
+    overlays.push(new window.mappls.Polyline({
+      map: mapInstance, path: path,
+      strokeColor: '#5B8DEF', strokeOpacity: 0.85, strokeWeight: 4
+    }));
+  }
+
+  mapNote.style.display = 'block';
+  mapNote.innerHTML = '<b>How to read this:</b> the model returns counts — ' + bCount + ' barricades, ' +
+    counts.police + ' officers, ' + dCount + ' diversion routes — from the risk engine. This layout spreads ' +
+    'those counts around the event perimeter and snaps diversion paths to real roads via Mappls routing. ' +
+    'Treat it as a starting plan for ground teams, not a surveyed deployment.';
+}
+
+function renderNoteOnly(center, counts, riskLevel){
+  mapNote.style.display = 'block';
+  mapNote.innerHTML = '<b>Map unavailable.</b> Resourcing from the model: ' + counts.barricades +
+    ' barricades, ' + counts.police + ' officers, ' + counts.diversions + ' diversion routes around ' +
+    center.lat.toFixed(4) + ', ' + center.lng.toFixed(4) + '.';
+}
+
+runBtn.addEventListener('click', async ()=>{
+  errBanner.style.display = 'none';
+  const cause = eventCause.value === '__other' ? (customCause.value.trim() || 'Other') : eventCause.value;
+  const location = locationInput.value.trim() || 'MG Road';
+  const startPoint = parsePoint(startLat, startLng);
+  const endPoint = parsePoint(endLat, endLng);
+  const radiusValue = Number(radiusMeters.value.trim());
+  const payload = {
+    event_type: eventType,
+    event_cause: cause,
+    location: location,
+    road_closure: roadClosure.checked,
+    start_point: startPoint,
+    end_point: endPoint,
+    radius_meters: Number.isFinite(radiusValue) ? radiusValue : null,
+    zone: zoneInput.value.trim() || null,
+    corridor: corridorInput.value.trim() || null
+  };
+  updateFormPreview();
+
+  runBtn.disabled = true;
+  runBtn.classList.add('loading');
+  runBtnText.textContent = 'Running twin…';
+  setGeoStatus(null, 'locating…');
+
+  try{
+    const res = await fetch(getApiBase() + '/simulate', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(data.status === 'error'){
+      throw new Error(data.message || 'Simulation failed');
+    }
+    renderResults(data, {
+      eventType,
+      cause,
+      location,
+      roadClosure: roadClosure.checked,
+      zone: zoneInput.value.trim() || data.detected_zone,
+      corridor: corridorInput.value.trim() || data.detected_corridor
+    });
+
+    // Geocode + plot, independent of any map errors so results still show.
+    runBtnText.textContent = 'Placing on map…';
+    let token = null;
+    try{ token = await getMapToken(); }catch(e){ /* geocode falls back without token */ }
+    const center = await geocodeLocation(location, token);
+    await plotEventOnMap(center, {
+      barricades: data.barricades_required,
+      police: data.police_required,
+      diversions: data.diversions
+    }, data.risk_level, {
+      start_point: startPoint,
+      end_point: endPoint,
+      radius_meters: Number.isFinite(radiusValue) ? radiusValue : null
+    });
+
+  }catch(e){
+    errBanner.textContent = 'Could not reach ASTRAM backend at ' + getApiBase() + ' — ' + e.message +
+      '. Make sure the FastAPI server is running and CORS allows this origin.';
+    errBanner.style.display = 'block';
+    setGeoStatus('bad', 'failed');
+  }finally{
+    runBtn.disabled = false;
+    runBtn.classList.remove('loading');
+    runBtnText.textContent = 'Run simulation';
+  }
+});
+
+downloadPdfBtn.addEventListener('click', ()=>{
+  window.print();
+});
+
+refreshDetectionBtn.addEventListener('click', ()=>{
+  loadZoneCorridor(locationInput.value.trim());
+});
+
+locationInput.addEventListener('blur', ()=>{
+  loadZoneCorridor(locationInput.value.trim());
+  updateFormPreview();
+});
+
+locationInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    loadZoneCorridor(locationInput.value.trim());
+    updateFormPreview();
+  }
+});
+
+// Initialize the compact form preview after DOM is ready.
+updateFormPreview();
+loadZoneCorridor(locationInput.value.trim());
+</script>
+</body>
+</html>
