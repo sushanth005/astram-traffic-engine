@@ -209,8 +209,9 @@ All 32,000+ vectors are saved to `models/embeddings.npy` (12.5 MB).
 A `NearestNeighbors` model (cosine metric, brute-force algorithm) is fitted on all embeddings. When a new event comes in:
 
 ```
-New event → encode to 384-dim vector
-          → find 5 nearest neighbors in historical data
+New event → encode to 384-dim vector using Hugging Face Inference API
+          → if API fails (e.g. rate limit, missing HF_TOKEN), gracefully fallback to Lexical Matching
+          → find 5 nearest neighbors in historical data (via vectors or lexical scores)
           → return similarity scores (0.0 to 1.0)
           → extract police_station, priority from matched events
 ```
