@@ -26,7 +26,7 @@ app.add_middleware(
         "http://localhost:5173",
         "https://astram-traffic-engine.vercel.app",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app", # To support preview deployments
+    allow_origin_regex=r"https://.*\.vercel\.app",  # To support preview deployments
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

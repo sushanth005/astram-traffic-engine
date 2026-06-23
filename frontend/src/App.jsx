@@ -387,6 +387,10 @@ export default function App() {
           }
         />
       </div>
+
+      <footer>
+        &copy; {new Date().getFullYear()} Astram Traffic Engine. All rights reserved.
+      </footer>
     </div>
   );
 }
