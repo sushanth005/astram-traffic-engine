@@ -155,9 +155,38 @@ def simulate_event(
     # --------------------------------
     # FIND SIMILAR EVENTS
     # --------------------------------
-    distances, indices = similarity_model.kneighbors(embedding, n_neighbors=5)
-    similar_events = df.iloc[indices[0]]
-    similarity_score = float(1 - distances[0][0])
+    if not embedding.any():
+        # Fallback lexical matching if embedding API failed (returned zero vector)
+        scores = []
+        loc_lower = str(location).lower()
+        ev_type_lower = str(event_type).lower()
+        ev_cause_lower = str(event_cause).lower()
+        
+        for _, row in df.iterrows():
+            score = 0
+            if str(row.get("event_type", "")).lower() == ev_type_lower:
+                score += 0.4
+            if str(row.get("event_cause", "")).lower() == ev_cause_lower:
+                score += 0.3
+            
+            row_zone = str(row.get("zone", "")).lower()
+            row_corr = str(row.get("corridor", "")).lower()
+            row_desc = str(row.get("description", "")).lower()
+            
+            if loc_lower and (loc_lower in row_zone or loc_lower in row_corr or loc_lower in row_desc):
+                score += 0.2
+            if bool(row.get("requires_road_closure", False)) == bool(road_closure):
+                score += 0.1
+            scores.append(score)
+            
+        similar_events_df = df.copy()
+        similar_events_df["temp_score"] = scores
+        similar_events = similar_events_df.sort_values(by="temp_score", ascending=False).head(5)
+        similarity_score = float(similar_events.iloc[0]["temp_score"])
+    else:
+        distances, indices = similarity_model.kneighbors(embedding, n_neighbors=5)
+        similar_events = df.iloc[indices[0]]
+        similarity_score = max(0.0, float(1 - distances[0][0]))
 
     # --------------------------------
     # EXTRACT CONTEXT FROM SIMILAR EVENTS
